@@ -1,116 +1,115 @@
-# Bank-Web-App-backend
+# PrimeCore Banking Backend
 
-## Backend Logic Placeholder
+The PrimeCore backend powers the banking services behind the PrimeCore web app. It manages customer records, spending and budgets, credit assessments, loan eligibility, transfers, and the everyday work of bank officers and administrators.
 
-This repository already contains the main backend scaffolding. Use this section as the checklist for future API logic work:
+## Who it supports
 
-- Implement and keep `/api/auth/me` as the canonical identity endpoint.
-- Keep role checks separate from ownership checks.
-- Store ownership using domain IDs such as `bankCustomerId`, `publicCustomerId`, and `officerId`.
-- Keep Swagger role notes accurate for public and protected routes.
-- Add or extend DTOs in `src/main/java/com/bank_web_app/backend/**/dto` before wiring new endpoints.
-- Add service methods first, then controller routes, then Swagger annotations, then frontend integration.
-- Validate new flows with `mvnw.cmd -q -DskipTests compile` before wiring the frontend.
+| User | Main capabilities |
+| --- | --- |
+| Public customers | Register, provide financial information, track spending, and review self credit assessments. |
+| Bank customers | Manage spending, view bank credit assessments, explore loan eligibility, and transfer money. |
+| Bank officers | Onboard customers, maintain financial records, review credit information, and manage assigned work. |
+| Administrators | Manage users, branches, officers, lending policies, audit records, and support conversations. |
 
-## Development Demo Logins
+## SpendIQ: spending and budgets
 
-The following demo users are seeded by Flyway migration `V3__seed_roles_and_demo_users.sql`.
+SpendIQ helps customers keep a record of their spending and understand how it compares with their plans.
 
-Important:
-- Seeded password value is `Demo@1234`.
-- Passwords are automatically migrated to BCrypt at runtime by `PasswordMigrationService`.
-- These credentials are for local development only.
+- Record, update, and review expenses.
+- Organize spending into categories.
+- Review spending summaries and category breakdowns.
+- Set budget limits and monitor spending against them.
+- Carry budget limits into a new month through budget rollover.
+- Review past activity and generate downloadable spending reports.
 
-| Role | Email | Username | Password |
-|---|---|---|---|
-| ADMIN | admin.demo@primecore.local | admin.demo | Demo@1234 |
-| BANK_OFFICER | officer.demo@primecore.local | officer.demo | Demo@1234 |
-| BANK_CUSTOMER | bank.customer.demo@primecore.local | bank.customer.demo | Demo@1234 |
-| PUBLIC_CUSTOMER | public.customer.demo@primecore.local | public.customer.demo | Demo@1234 |
+## CreditLens: credit health and assessments
 
-## Transact OTP Email Notes (Brevo)
+CreditLens uses customer financial records to produce credit evaluations and supporting insights.
 
-- OTP is generated and saved in `transaction_otp_logs` first, then email delivery is attempted.
-- Demo user emails use `@primecore.local`, which is non-routable for real inbox delivery.
-- For local OTP testing with a real inbox, set:
-  - `APP_TRANSACT_OTP_OVERRIDE_RECIPIENT_EMAIL=<your-real-email>`
-- Verify the sender email address in Brevo, then set:
-  - `APP_MAIL_FROM=<brevo-verified-sender-email>`
-- Create a Brevo API key and set it only in `.env` or your deployment's secret
-  store:
-  - `BREVO_API_KEY=...`
-- `APP_MAIL_NAME=Primecore` is optional. The application sends plain-text
-  transactional messages directly through Brevo; no Brevo template is needed.
+- Generate self credit assessments for public customers.
+- Support bank customer credit evaluations and officer reviews.
+- Provide credit scores, risk levels, and explanations of contributing factors.
+- Supply dashboard summaries, trends, and financial insights.
+- Keep previous evaluations so customers and officers can review changes over time.
+- Generate monthly report information and downloadable credit report PDFs.
 
-## Deploying with Neon PostgreSQL
+## LoanSense: borrowing eligibility
 
-The primary application database uses `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD`.
-Set those values, along with `SPRING_PROFILES_ACTIVE=prod`, as secrets in the
-deployment provider. Copy the database host, database name, role, and password
-from **Neon Dashboard -> Connect**. The JDBC URL must include Neon SSL options:
+LoanSense evaluates borrowing options using financial information, credit assessments, and the bank's lending policies.
 
-```text
-jdbc:postgresql://<neon-host>/<database>?sslmode=require&channel_binding=require
-```
+- Assess eligibility for personal, vehicle, education, and housing loans.
+- Calculate recommended maximum borrowing amounts.
+- Provide estimated monthly repayments and applicable repayment periods.
+- Consider income, existing commitments, and risk when assessing repayment capacity.
+- Explain eligibility outcomes for each loan category.
+- Keep assessment history for later review.
 
-Use the **pooled** Neon endpoint for `DB_URL` in normal application instances.
-Set `FLYWAY_ENABLED=true` and `FLYWAY_DB_URL` to the **direct (non-pooler)**
-endpoint only in one release/migration job. This avoids every scaled instance
-contending to run schema migrations. Production Hibernate only validates the
-schema; it never creates or changes production tables.
+## Transact: transfers and payment records
 
-### One-time JPA bootstrap for an empty Neon database
+Transact supports customer transfers and keeps the records needed to review completed activity.
 
-When intentionally starting with an empty Neon database, set
-`HIBERNATE_DDL_AUTO=update` for one startup. Hibernate creates tables represented
-by JPA entities while Flyway remains disabled. On a successful startup, change
-the variable back to `HIBERNATE_DDL_AUTO=validate` and restart.
+- Verify account details during banking workflows.
+- Request and verify one-time passwords for transfers.
+- Process transfers and record transaction references.
+- Add, update, list, and remove beneficiaries.
+- Retrieve transaction details and payment history.
+- Download individual transaction receipts and transaction statements as PDFs.
+- Provide bank officers with transaction review capabilities.
 
-This approach does not create database objects defined only in SQL migrations
-and does not seed demo users. It is a bootstrap fallback while the duplicate
-Flyway migration versions are being resolved.
+## Customer onboarding and financial records
 
-### Mock logins for development or staging
+The backend supports both public customer onboarding and bank officer-assisted customer registration.
 
-After the schema exists, run `src/main/resources/db/seed/mock-logins.sql` in
-the Neon SQL Editor to create one mock login for each application role. It is
-manual-only and idempotent; it is deliberately outside Flyway so those accounts
-cannot be added accidentally to a production deployment.
+- Capture customer details and financial information.
+- Record income, loans, credit cards, liabilities, and missed payments.
+- Save onboarding steps as drafts and resume incomplete work.
+- Track progress through financial information, credit information, and final review steps.
+- Look up credit information from the configured CRIB dataset using a customer's national identity number.
+- Record credit information request and retrieval status.
+- Maintain historical financial snapshots when customer information changes.
 
-| Role | Login email | Password |
-|---|---|---|
-| ADMIN | `admin.mock@example.test` | `Demo@1234` |
-| BANK_OFFICER | `officer.mock@example.test` | `Demo@1234` |
-| BANK_CUSTOMER | `bank.customer.mock@example.test` | `Demo@1234` |
-| PUBLIC_CUSTOMER | `public.customer.mock@example.test` | `Demo@1234` |
+## Bank officer operations
 
-Remove or change these known-password accounts before public access.
+- Browse customer portfolios and open customer records.
+- Manage onboarding and financial maintenance work.
+- Follow customer cases through a work queue.
+- Review financial history and credit evaluations.
+- Access customer transaction records.
 
-To add linked beneficiaries and completed transactions for the five additional
-mock bank customers, run `src/main/resources/db/seed/mock-bank-customer-transactions.sql`
-after creating those customers and their accounts.
+## Administration and oversight
 
-For linked Bank Customer financial records (income, loans, cards, liabilities,
-and missed payments), run `src/main/resources/db/seed/mock-bank-customer-financial-records.sql`.
+Administrators manage the records and policies that support banking operations.
 
-To move the existing local `webapp` database, install PostgreSQL client tools
-(`pg_dump` and `pg_restore`) and run the following in PowerShell. Paste the
-direct Neon PostgreSQL connection string only when prompted; do not store it in
-the repository.
+- Manage user accounts and bank officer records.
+- Create and manage branches.
+- Maintain lending policies for supported loan categories.
+- Configure risk adjustments used in lending assessments.
+- Review administrative dashboard information.
+- Follow recorded activity through audit logs.
+- Oversee support conversations and update their status.
 
-```powershell
-pg_dump -Fc --no-owner --no-privileges -h localhost -U postgres -d webapp -f webapp.dump
-pg_restore -v --no-owner --no-privileges -d "postgresql://<role>:<password>@<direct-neon-host>/<database>?sslmode=require&channel_binding=require" webapp.dump
-```
+## Account access and profiles
 
-Verify the import with:
+- Registration and sign-in for supported account roles.
+- Account activation workflows and related email messages.
+- Password recovery with one-time password verification.
+- Access checks based on account roles and ownership of customer records.
+- Profile updates and profile image storage.
 
-```powershell
-psql "postgresql://<role>:<password>@<direct-neon-host>/<database>?sslmode=require&channel_binding=require" -c "SELECT count(*) FROM users;"
-```
+## Notifications and support
 
-`crib.datasource` is a separate database connection. Import
-`src/main/resources/db/crib/Crib_Dataset.sql` into the Neon `Crib_DB` database,
-then set `CRIB_DB_URL` to its pooled JDBC URL. By default it reuses
-`DB_USERNAME` and `DB_PASSWORD`; set `CRIB_DB_USERNAME` and
-`CRIB_DB_PASSWORD` only if the CRIB database uses a different Neon role.
+- Deliver notifications about relevant account and banking activity.
+- Send email messages for supported activation, account, and verification workflows.
+- Create support conversations with a subject, category, and message.
+- Allow users and support staff to exchange replies.
+- Track read status and whether a conversation is open or closed.
+
+## Reports and history
+
+PrimeCore keeps spending, credit, financial, and transaction records available for later review. Downloadable reports include spending reports, credit assessment reports, transaction statements, and payment receipts.
+
+Available features depend on the user's role, customer records, and configured banking and email services.
+
+## Development guide
+
+For the existing development, demo account, email configuration, and deployment notes, see [DEVELOPMENT.md](DEVELOPMENT.md).
