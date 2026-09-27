@@ -2,6 +2,7 @@ package com.bank_web_app.backend.bankofficer.controller;
 
 import com.bank_web_app.backend.bankofficer.dto.request.BankOfficerCustomerFilterRequest;
 import com.bank_web_app.backend.bankofficer.dto.response.BankOfficerCustomerSummaryResponse;
+import com.bank_web_app.backend.bankofficer.dto.response.OfficerPageResponse;
 import com.bank_web_app.backend.bankofficer.service.PortfolioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -49,5 +50,20 @@ public class PortfolioController {
 				new BankOfficerCustomerFilterRequest(search, status, riskLevel, sortBy)
 			)
 		);
+	}
+
+	@GetMapping("/page")
+	@Operation(summary = "Get one paginated page of the logged-in officer's customer portfolio")
+	public ResponseEntity<OfficerPageResponse<BankOfficerCustomerSummaryResponse>> getPage(
+		@RequestParam(required = false) String search,
+		@RequestParam(required = false) String status,
+		@RequestParam(required = false) String riskLevel,
+		@RequestParam(required = false) String sortBy,
+		@RequestParam(defaultValue = "0") int page,
+		@RequestParam(defaultValue = "10") int size
+	) {
+		return ResponseEntity.ok(portfolioService.getBankCustomersForOfficerPage(
+			new BankOfficerCustomerFilterRequest(search, status, riskLevel, sortBy), page, size
+		));
 	}
 }

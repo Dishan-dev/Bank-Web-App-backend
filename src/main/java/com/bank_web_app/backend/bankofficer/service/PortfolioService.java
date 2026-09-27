@@ -4,6 +4,7 @@ import com.bank_web_app.backend.bankcustomer.entity.BankCustomer;
 import com.bank_web_app.backend.bankcustomer.repository.BankCustomerRepository;
 import com.bank_web_app.backend.bankofficer.dto.request.BankOfficerCustomerFilterRequest;
 import com.bank_web_app.backend.bankofficer.dto.response.BankOfficerCustomerSummaryResponse;
+import com.bank_web_app.backend.bankofficer.dto.response.OfficerPageResponse;
 import com.bank_web_app.backend.bankofficer.entity.BankOfficer;
 import com.bank_web_app.backend.creditlens.entity.BankCreditEvaluation;
 import com.bank_web_app.backend.creditlens.repository.BankCreditEvaluationRepository;
@@ -38,7 +39,31 @@ public class PortfolioService {
 
 	@Transactional(readOnly = true)
 	public List<BankOfficerCustomerSummaryResponse> getBankCustomersForOfficer(BankOfficerCustomerFilterRequest filters) {
-		bankOfficerContextService.resolveLoggedInBankOfficer();
+		return getFilteredCustomerRows(filters);
+	}
+
+	/**
+	 * Returns only the requested slice and page metadata. Filtering and ordering
+	 * happen before slicing so page boundaries are correct for the final result.
+	 */
+	@Transactional(readOnly = true)
+	public OfficerPageResponse<BankOfficerCustomerSummaryResponse> getBankCustomersForOfficerPage(
+		BankOfficerCustomerFilterRequest filters,
+		int page,
+		int size
+	) {
+		List<BankOfficerCustomerSummaryResponse> rows = getFilteredCustomerRows(filters);
+		int safePage = Math.max(page, 0);
+		int safeSize = Math.min(Math.max(size, 1), 100);
+		int totalPages = rows.isEmpty() ? 0 : (int) Math.ceil((double) rows.size() / safeSize);
+		if (totalPages > 0) safePage = Math.min(safePage, totalPages - 1);
+		int from = Math.min(safePage * safeSize, rows.size());
+		int to = Math.min(from + safeSize, rows.size());
+		return new OfficerPageResponse<>(rows.subList(from, to), safePage, safeSize, rows.size(), totalPages);
+	}
+
+	private List<BankOfficerCustomerSummaryResponse> getFilteredCustomerRows(BankOfficerCustomerFilterRequest filters) {
+		BankOfficer officer = bankOfficerContextService.resolveLoggedInBankOfficer();
 		Map<Long, BankCreditEvaluation> latestEvaluationByCustomerId = loadLatestEvaluations();
 		String normalizedSearch = normalize(filters == null ? null : filters.search());
 		String normalizedStatus = normalize(filters == null ? null : filters.status());
@@ -46,7 +71,7 @@ public class PortfolioService {
 		String normalizedSortBy = normalize(filters == null ? null : filters.sortBy());
 
 		List<CustomerSummaryView> rows = bankCustomerRepository
-			.findAll()
+			.findAllByOfficer_OfficerId(officer.getOfficerId())
 			.stream()
 			.map(customer -> toSummary(customer, latestEvaluationByCustomerId.get(customer.getBankCustomerId())))
 			// Apply server-side filters and sorting here. These filters use the
